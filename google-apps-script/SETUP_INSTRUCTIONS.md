@@ -64,8 +64,8 @@ Sigue estos 5 sencillos pasos para dejar listo el backend transaccional en Googl
 2. Configura:
    ```env
    GOOGLE_APPS_SCRIPT_URL="https://script.google.com/macros/s/TU_CODIGO_AQUI/exec"
-   SCRIPT_SECRET_KEY="theravit360_halloween_secret_key_2026"
-   ADMIN_SESSION_SECRET="halloween_theravit360_super_secret_jwt_2026_key_#190d2e"
+   SCRIPT_SECRET_KEY="TU_CLAVE_SECRETA_AQUI"
+   ADMIN_SESSION_SECRET="TU_SECRETO_DE_SESION_AQUI"
    NEXT_PUBLIC_APP_URL="http://localhost:3000"
    ```
 3. ¡Listo! Tu plataforma web ahora leerá y escribirá en Google Sheets y guardará los comprobantes en Google Drive en tiempo real.

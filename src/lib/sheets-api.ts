@@ -7,7 +7,7 @@
 import { getRandomTemplateIndex, resolveTicketTemplate } from "@/lib/ticket-templates";
 
 const APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_URL;
-const SCRIPT_SECRET = process.env.SCRIPT_SECRET_KEY || "theravit360_halloween_secret_key_2026";
+const SCRIPT_SECRET = process.env.SCRIPT_SECRET_KEY || "";
 
 export async function callAppsScript(action: string, payload: Record<string, any> = {}): Promise<any> {
   // Si hay URL real de Apps Script configurada, conectar directamente

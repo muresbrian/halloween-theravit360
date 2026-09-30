@@ -20,7 +20,7 @@
  */
 
 // Clave secreta compartida con Next.js (Cambiar por una clave segura)
-var SCRIPT_SECRET_KEY = "theravit360_halloween_secret_key_2026";
+var SCRIPT_SECRET_KEY = "TU_CLAVE_SECRETA_AQUI";
 
 // Nombre de la carpeta principal en Google Drive
 var DRIVE_FOLDER_NAME = "Halloween Theravit360 2026 - Comprobantes";
