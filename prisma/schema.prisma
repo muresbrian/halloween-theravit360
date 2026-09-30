@@ -1,0 +1,146 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Setting {
+  key       String   @id
+  value     String
+  category  String
+  updatedAt DateTime @updatedAt
+}
+
+model AdminUser {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  name         String
+  role         String     @default("admin") // 'superadmin', 'admin', 'scanner'
+  active       Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  checkIns     CheckIn[]
+  auditLogs    AuditLog[]
+}
+
+model TicketType {
+  id          String    @id @default(uuid())
+  name        String    // ej: 'GENERAL', 'VIP', 'MESA'
+  description String?
+  price       Float     // ej: 500.00
+  quantity    Int       // Capacidad total configurada (ej: 200)
+  sold        Int       @default(0) // Boletos con orden PAGADA
+  reserved    Int       @default(0) // Boletos en órdenes RESERVADA
+  active      Boolean   @default(true)
+  saleStart   DateTime?
+  saleEnd     DateTime?
+  maxPerOrder Int       @default(10)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  orders      Order[]
+  tickets     Ticket[]
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  firstName String
+  lastName  String
+  email     String
+  phone     String
+  whatsapp  String
+  createdAt DateTime @default(now())
+  orders    Order[]
+
+  @@index([email])
+  @@index([phone])
+}
+
+model Order {
+  id                    String      @id @default(uuid())
+  folio                 String      @unique // ej: 'HAL-2026-0001'
+  customerId            String
+  customer              Customer    @relation(fields: [customerId], references: [id])
+  ticketTypeId          String
+  ticketType            TicketType  @relation(fields: [ticketTypeId], references: [id])
+  quantity              Int
+  unitPrice             Float
+  totalAmount           Float
+  status                String      @default("RESERVADA") 
+  // Estados: 'RESERVADA', 'COMPROBANTE_RECIBIDO', 'PAGADA', 'RECHAZADA', 'CANCELADA', 'EXPIRADA'
+  
+  reservationExpiresAt DateTime    // Límite para subir comprobante
+  notes                 String?
+  receiptUrl            String?     // Ruta del comprobante
+  receiptUploadedAt     DateTime?
+  
+  rejectionReason       String?
+  paidAt                DateTime?
+  cancelledAt           DateTime?
+  
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  tickets               Ticket[]
+  auditLogs             AuditLog[]
+
+  @@index([folio])
+  @@index([status])
+  @@index([reservationExpiresAt])
+}
+
+model Ticket {
+  id             String      @id @default(uuid())
+  ticketNumber   String      @unique // ej: 'HAL-TKT-0001-01'
+  secureToken    String      @unique // Token alfanumérico seguro para QR y enlace individual
+  orderId        String
+  order          Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  ticketTypeId   String
+  ticketType     TicketType  @relation(fields: [ticketTypeId], references: [id])
+  
+  attendeeName   String?     // Asistente individual
+  attendeePhone  String?     // Teléfono del asistente individual
+  
+  status         String      @default("RESERVADO") 
+  // Estados: 'RESERVADO', 'PAGO_PENDIENTE', 'PAGADO', 'UTILIZADO', 'CANCELADO', 'EXPIRADO'
+  
+  checkIn        CheckIn?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([secureToken])
+  @@index([ticketNumber])
+  @@index([status])
+}
+
+model CheckIn {
+  id                String     @id @default(uuid())
+  ticketId          String     @unique
+  ticket            Ticket     @relation(fields: [ticketId], references: [id])
+  checkedInAt       DateTime   @default(now())
+  checkedInByUserId String?
+  checkedInByUser   AdminUser? @relation(fields: [checkedInByUserId], references: [id])
+  deviceInfo        String?    // Navegador o dispositivo de escaneo
+  method            String     @default("QR_CAMERA") // 'QR_CAMERA' o 'MANUAL_ENTRY'
+  
+  @@index([checkedInAt])
+}
+
+model AuditLog {
+  id          String     @id @default(uuid())
+  action      String     // 'ORDER_CREATED', 'RECEIPT_UPLOADED', 'PAYMENT_CONFIRMED', 'CHECK_IN_SUCCESS', etc.
+  entityType  String     // 'ORDER', 'TICKET', 'SETTINGS', 'CHECK_IN'
+  entityId    String
+  orderId     String?
+  order       Order?     @relation(fields: [orderId], references: [id])
+  performedBy String?
+  adminUser   AdminUser? @relation(fields: [performedBy], references: [id])
+  details     String?    // JSON con detalles adicionales
+  ipAddress   String?
+  createdAt   DateTime   @default(now())
+
+  @@index([entityType, entityId])
+  @@index([action])
+}
