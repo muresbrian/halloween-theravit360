@@ -15,6 +15,7 @@ import {
   Loader2,
   Clock,
   ShieldCheck,
+  Flame,
 } from "lucide-react";
 
 function ApartarContent() {
@@ -153,7 +154,10 @@ function ApartarContent() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {ticketTypes.map((t) => {
                   const isSelected = t.id === selectedTypeId;
-                  const isSoldOut = t.available <= 0;
+                  const displayTotal = 200;
+                  const realTaken = Number(t.sold || 0) + Number(t.reserved || 0);
+                  const displayAvailable = Math.max(0, 120 - realTaken);
+                  const isSoldOut = displayAvailable <= 0;
 
                   return (
                     <div
@@ -186,7 +190,10 @@ function ApartarContent() {
                         {isSoldOut ? (
                           <span className="text-red-400 font-bold uppercase">Agotado</span>
                         ) : (
-                          <span className="text-emerald-400 font-semibold">{t.available} disponibles</span>
+                          <span className="text-amber-400 font-bold flex items-center gap-1">
+                            <Flame className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                            Quedan {displayAvailable} de {displayTotal}
+                          </span>
                         )}
                       </div>
                     </div>

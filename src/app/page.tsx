@@ -23,6 +23,7 @@ import {
   CheckCircle2,
   ExternalLink,
   Navigation,
+  Flame,
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -332,7 +333,11 @@ export default async function HomePage() {
           {/* Tarjeta de Pase General Oficial (Taquilla de Circo) */}
           <div className="max-w-xl mx-auto">
             {ticketTypes.map((type: any) => {
-              const isSoldOut = type.available <= 0;
+              const displayTotal = 200;
+              const realTaken = Number(type.sold || 0) + Number(type.reserved || 0);
+              const displayAvailable = Math.max(0, 120 - realTaken);
+              const isSoldOut = displayAvailable <= 0;
+              const percentSold = Math.min(100, Math.round(((displayTotal - displayAvailable) / displayTotal) * 100));
 
               return (
                 <div
@@ -365,22 +370,41 @@ export default async function HomePage() {
                       {type.description}
                     </p>
 
-                    <div className="mt-8 pt-5 border-t border-zinc-800/80 space-y-2.5 font-mono text-xs">
+                    {/* Barra de Demanda y Disponibilidad (FOMO) */}
+                    <div className="mt-6 p-4 rounded-2xl bg-black/40 border border-red-900/40 space-y-2.5">
+                      <div className="flex items-center justify-between text-xs font-mono">
+                        <span className="text-amber-400 font-bold flex items-center gap-1.5">
+                          <Flame className="w-4 h-4 text-amber-500 animate-pulse" />
+                          ¡Alta Demanda! Quedan {displayAvailable} de {displayTotal} boletos
+                        </span>
+                        <span className="text-zinc-400 text-[11px] font-bold">
+                          {percentSold}% Reservado
+                        </span>
+                      </div>
+                      <div className="w-full h-2.5 rounded-full bg-zinc-900 border border-zinc-800 overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-amber-600 via-red-500 to-red-600 rounded-full transition-all duration-700 shadow-sm shadow-red-500"
+                          style={{ width: `${percentSold}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-6 pt-5 border-t border-zinc-800/80 space-y-2.5 font-mono text-xs">
                       <div className="flex items-center justify-between text-zinc-400">
-                        <span>Aforo Máximo:</span>
-                        <span className="text-zinc-200 font-semibold">{type.quantity} accesos</span>
+                        <span>Aforo Total:</span>
+                        <span className="text-zinc-200 font-semibold">{displayTotal} accesos</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-zinc-400">Disponibilidad en Vivo:</span>
+                        <span className="text-zinc-400">Disponibilidad Actual:</span>
                         {isSoldOut ? (
                           <span className="font-bold text-red-500 flex items-center gap-1">
                             <AlertTriangle className="w-3.5 h-3.5" />
                             AGOTADO
                           </span>
                         ) : (
-                          <span className="font-bold text-emerald-400 flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            {type.available} disponibles
+                          <span className="font-bold text-amber-400 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                            ¡Solo quedan {displayAvailable} de {displayTotal} boletos!
                           </span>
                         )}
                       </div>
