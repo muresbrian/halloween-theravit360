@@ -114,11 +114,18 @@ async function fallbackLookupOrders(payload: Record<string, any>): Promise<any> 
 
       if (isMatch && !matchedOrderIds.has(ord.orderId)) {
         matchedOrderIds.add(ord.orderId);
+
+        const isPaid = ord.status === "PAGADA";
+        const storedClaimCode = (ord.claimCode || "").trim().toUpperCase();
+        const providedClaimCode = (payload.claimCode || "").trim().toUpperCase();
+        const isUnlocked = !isPaid || !storedClaimCode || (providedClaimCode && providedClaimCode === storedClaimCode);
+        const requiresClaimCode = isPaid && Boolean(storedClaimCode) && !isUnlocked;
+
         const ordTickets = allTickets
           .filter((t: any) => t.orderId === ord.orderId)
           .map((t: any) => ({
             ticketNumber: t.ticketNumber,
-            secureToken: t.secureToken,
+            secureToken: isUnlocked ? t.secureToken : "",
             attendeeName: t.attendeeName || "Invitado",
             status: t.status,
             templateIndex: t.templateIndex || resolveTicketTemplate(t).id,
@@ -131,6 +138,8 @@ async function fallbackLookupOrders(payload: Record<string, any>): Promise<any> 
           totalAmount: Number(ord.totalAmount),
           status: ord.status,
           createdAt: ord.createdAt,
+          unlocked: isUnlocked,
+          requiresClaimCode: requiresClaimCode,
           tickets: ordTickets,
         });
       }
@@ -665,6 +674,8 @@ async function mockAppsScriptEngine(action: string, payload: Record<string, any>
       const reviewer = payload.reviewerName || "Admin";
 
       if (payload.decision === "APPROVE") {
+        const claimCode = ord.claimCode || "THV-" + generateToken(6).toUpperCase();
+        ord.claimCode = claimCode;
         ord.status = "PAGADA";
         ord.updatedAt = new Date().toISOString();
         for (const t of db.tickets) {
@@ -682,7 +693,7 @@ async function mockAppsScriptEngine(action: string, payload: Record<string, any>
           pay.reviewedAt = new Date().toISOString();
           pay.reviewedBy = reviewer;
         }
-        return { success: true, message: "Pago aprobado y boletos activados." };
+        return { success: true, message: `Pago aprobado. Código generado: ${claimCode}`, claimCode };
       } else {
         ord.status = "RECHAZADA";
         ord.updatedAt = new Date().toISOString();
@@ -772,6 +783,7 @@ async function mockAppsScriptEngine(action: string, payload: Record<string, any>
     case "lookupOrders": {
       const cleanFolio = (payload.folio || "").trim().toUpperCase();
       const cleanQuery = (payload.query || "").trim().toLowerCase();
+      const providedClaimCode = (payload.claimCode || "").trim().toUpperCase();
 
       let matchedOrders = db.orders;
       if (cleanFolio) {
@@ -790,10 +802,16 @@ async function mockAppsScriptEngine(action: string, payload: Record<string, any>
       const results = matchedOrders.map((o) => {
         const cus = db.customers.find((c) => c.customerId === o.customerId);
         const tt = db.ticketTypes.find((t) => t.id === o.ticketTypeId);
+        const isPaid = o.status === "PAGADA";
+        const storedClaimCode = (o.claimCode || "").trim().toUpperCase();
+        const isUnlocked = !isPaid || !storedClaimCode || (providedClaimCode && providedClaimCode === storedClaimCode);
+        const requiresClaimCode = isPaid && Boolean(storedClaimCode) && !isUnlocked;
+
         const tkts = db.tickets
           .filter((t) => t.orderId === o.orderId)
           .map((t) => ({
             ...t,
+            secureToken: isUnlocked ? t.secureToken : "",
             templateIndex: t.templateIndex || resolveTicketTemplate(t).id,
           }));
         return {
@@ -805,11 +823,37 @@ async function mockAppsScriptEngine(action: string, payload: Record<string, any>
           createdAt: o.createdAt,
           customerName: cus ? cus.name : "",
           ticketTypeName: tt ? tt.name : "GENERAL",
+          unlocked: isUnlocked,
+          requiresClaimCode: requiresClaimCode,
           tickets: tkts,
         };
       });
 
       return { success: true, orders: results };
+    }
+
+    case "validateClaimCode": {
+      const cleanFolio = (payload.folio || "").trim().toUpperCase();
+      const code = (payload.claimCode || "").trim().toUpperCase();
+      const ord = db.orders.find((o) => o.folio.toUpperCase() === cleanFolio);
+      if (!ord) return { success: false, error: "Orden no encontrada." };
+      const stored = (ord.claimCode || "").trim().toUpperCase();
+      if (!stored || stored !== code) {
+        return { success: false, error: "Código alfanumérico no válido o no corresponde a esta orden." };
+      }
+      const tkts = db.tickets
+        .filter((t) => t.orderId === ord.orderId)
+        .map((t) => ({
+          ...t,
+          templateIndex: t.templateIndex || resolveTicketTemplate(t).id,
+        }));
+      return {
+        success: true,
+        unlocked: true,
+        folio: ord.folio,
+        orderAccessToken: ord.orderAccessToken,
+        tickets: tkts,
+      };
     }
 
     case "getAdminConfig": {

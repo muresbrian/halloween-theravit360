@@ -63,7 +63,7 @@ function setupHalloweenDatabase() {
       ["customerId", "name", "email", "phone", "createdAt", "updatedAt"]
     ],
     "ORDERS": [
-      ["orderId", "folio", "orderAccessToken", "customerId", "ticketTypeId", "quantity", "unitPrice", "totalAmount", "status", "reservationExpiresAt", "notes", "createdAt", "updatedAt"]
+      ["orderId", "folio", "orderAccessToken", "customerId", "ticketTypeId", "quantity", "unitPrice", "totalAmount", "status", "claimCode", "reservationExpiresAt", "notes", "createdAt", "updatedAt"]
     ],
     "TICKETS": [
       ["ticketId", "ticketNumber", "orderId", "ticketTypeId", "secureToken", "attendeeName", "attendeePhone", "status", "createdAt", "updatedAt", "usedAt", "usedBy", "revokedAt"]
@@ -170,6 +170,116 @@ function generateRandomToken(len) {
 function generateFolio(orderCount) {
   var seq = ("0000" + (orderCount + 1)).slice(-4);
   return "HAL-2026-" + seq;
+}
+
+function generateClaimCode() {
+  // Código alfanumérico legible de 6 caracteres (sin 0, O, 1, I para evitar confusión)
+  var chars = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+  var code = "";
+  for (var i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return "THV-" + code;
+}
+
+function ensureOrdersClaimCodeColumn() {
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("ORDERS");
+    if (!sheet) return;
+    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    if (headers.indexOf("claimCode") === -1) {
+      var newCol = headers.length + 1;
+      sheet.getRange(1, newCol).setValue("claimCode");
+      sheet.getRange(1, newCol).setFontWeight("bold").setBackground("#272335").setFontColor("#FFFFFF");
+      Logger.log("Columna claimCode añadida automáticamente a ORDERS.");
+    }
+  } catch (err) {
+    Logger.log("Aviso al verificar columna claimCode: " + err.message);
+  }
+}
+
+function sendAdminReceiptAlert(ord, receiptUrl, customer) {
+  try {
+    var adminEmail = "muresbrian@gmail.com";
+    var subject = "🚨 [Nuevo Comprobante] Orden " + ord.folio + " - " + (customer ? customer.name : "Cliente");
+    
+    var htmlBody = '<div style="background-color:#07050d;color:#f4ebd0;font-family:Arial,sans-serif;padding:30px;border-radius:12px;max-width:600px;margin:0 auto;border:1px solid #7f1d1d;">' +
+      '<div style="text-align:center;margin-bottom:24px;">' +
+        '<h1 style="color:#ef4444;font-size:24px;margin:0;text-transform:uppercase;letter-spacing:2px;">🎃 Halloween Theravit360</h1>' +
+        '<p style="color:#a1a1aa;font-size:14px;margin:6px 0 0 0;">Nuevo comprobante de transferencia bancaria recibido</p>' +
+      '</div>' +
+      '<div style="background-color:#130f1c;padding:20px;border-radius:8px;border:1px solid #27272a;margin-bottom:20px;">' +
+        '<p style="margin:6px 0;font-size:15px;"><strong>Folio de Orden:</strong> <span style="color:#ef4444;font-family:monospace;font-size:18px;">' + ord.folio + '</span></p>' +
+        '<p style="margin:6px 0;font-size:14px;"><strong>Cliente:</strong> ' + (customer ? customer.name : "N/A") + '</p>' +
+        '<p style="margin:6px 0;font-size:14px;"><strong>Correo:</strong> ' + (customer ? customer.email : "N/A") + '</p>' +
+        '<p style="margin:6px 0;font-size:14px;"><strong>Teléfono:</strong> ' + (customer ? customer.phone : "N/A") + '</p>' +
+        '<p style="margin:6px 0;font-size:14px;"><strong>Boletos:</strong> ' + ord.quantity + '</p>' +
+        '<p style="margin:6px 0;font-size:16px;"><strong>Monto Total:</strong> <span style="color:#10b981;font-weight:bold;">$' + ord.totalAmount + ' MXN</span></p>' +
+      '</div>' +
+      '<div style="text-align:center;margin:28px 0;">' +
+        '<a href="' + receiptUrl + '" target="_blank" style="background-color:#dc2626;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold;display:inline-block;font-size:14px;margin-right:10px;">Ver Comprobante en Drive</a> ' +
+        '<a href="https://halloween-theravit360.netlify.app/admin/pagos" target="_blank" style="background-color:#27272a;color:#f4ebd0;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold;display:inline-block;font-size:14px;border:1px solid #52525b;">Ir a Validar en Panel Admin</a>' +
+      '</div>' +
+      '<p style="font-size:12px;color:#71717a;text-align:center;margin-top:20px;">Este correo se generó automáticamente tras la carga del comprobante en la plataforma web.</p>' +
+    '</div>';
+
+    MailApp.sendEmail({
+      to: adminEmail,
+      subject: subject,
+      htmlBody: htmlBody
+    });
+    Logger.log("Admin receipt alert sent to " + adminEmail + " for order " + ord.folio);
+  } catch (e) {
+    Logger.log("Error sending admin receipt alert: " + e.message);
+  }
+}
+
+function sendCustomerClaimCodeEmail(ord, customer, claimCode) {
+  try {
+    if (!customer || !customer.email) return;
+    
+    var subject = "🎟️ ¡Pago Confirmado! Código de Desbloqueo de Boletos - Folio " + ord.folio;
+    var unlockUrl = "https://halloween-theravit360.netlify.app/mis-boletos?folio=" + encodeURIComponent(ord.folio) + "&codigo=" + encodeURIComponent(claimCode);
+    
+    var htmlBody = '<div style="background-color:#07050d;color:#f4ebd0;font-family:Arial,sans-serif;padding:30px;border-radius:12px;max-width:600px;margin:0 auto;border:1px solid #7f1d1d;">' +
+      '<div style="text-align:center;margin-bottom:24px;">' +
+        '<h1 style="color:#ef4444;font-size:24px;margin:0;text-transform:uppercase;letter-spacing:2px;">🎃 Halloween Theravit360 2026</h1>' +
+        '<p style="color:#34d399;font-size:16px;font-weight:bold;margin:8px 0 0 0;">¡Tu transferencia ha sido validada y confirmada!</p>' +
+      '</div>' +
+      '<p style="font-size:15px;line-height:1.6;color:#e4e4e7;">Hola <strong>' + (customer.name || "Asistente") + '</strong>,</p>' +
+      '<p style="font-size:14px;line-height:1.6;color:#a1a1aa;">Tu pago para la orden <strong>' + ord.folio + '</strong> por <strong>' + ord.quantity + ' boleto(s)</strong> ha sido acreditado exitosamente.</p>' +
+      '<div style="background-color:#130f1c;padding:24px;border-radius:10px;border:2px dashed #dc2626;text-align:center;margin:25px 0;">' +
+        '<span style="font-size:12px;color:#a1a1aa;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px;">Tu Código Alfanumérico de Seguridad:</span>' +
+        '<div style="font-family:monospace;font-size:32px;font-weight:900;letter-spacing:4px;color:#f4ebd0;background:#1e1828;padding:12px 20px;border-radius:8px;display:inline-block;border:1px solid #dc2626;">' +
+          claimCode +
+        '</div>' +
+        '<p style="font-size:12px;color:#a1a1aa;margin-top:12px;">Usa este código en la web para desbloquear y descargar tus boletos digitales.</p>' +
+      '</div>' +
+      '<div style="text-align:center;margin:30px 0;">' +
+        '<a href="' + unlockUrl + '" target="_blank" style="background-color:#dc2626;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:bold;display:inline-block;font-size:15px;box-shadow:0 4px 15px rgba(220,38,38,0.4);">' +
+          'Desbloquear y Descargar Boletos Directamente' +
+        '</a>' +
+      '</div>' +
+      '<div style="background-color:#181422;padding:16px;border-radius:8px;margin-top:20px;font-size:12px;color:#a1a1aa;border-left:4px solid #ef4444;">' +
+        '<p style="margin:0 0 6px 0;"><strong>Importante:</strong></p>' +
+        '<ul style="margin:0;padding-left:18px;">' +
+          '<li>Cada boleto cuenta con un código QR único e intransferible.</li>' +
+          '<li>Guarda tus boletos en tu celular o descárgalos en PDF antes de llegar al evento.</li>' +
+          '<li>El evento inicia a las 20:00 hrs en Theravit 360°. Presenta tu identificación oficial y disfraz.</li>' +
+        '</ul>' +
+      '</div>' +
+      '<p style="font-size:11px;color:#52525b;text-align:center;margin-top:25px;">Theravit360 Eventos • Si tienes dudas, contáctanos vía WhatsApp oficial.</p>' +
+    '</div>';
+
+    MailApp.sendEmail({
+      to: customer.email,
+      subject: subject,
+      htmlBody: htmlBody
+    });
+    Logger.log("Customer claim code email sent to " + customer.email + " for order " + ord.folio);
+  } catch (e) {
+    Logger.log("Error sending customer claim code email: " + e.message);
+  }
 }
 
 function logAudit(actor, action, entity, entityId, details) {
@@ -577,6 +687,21 @@ function handleUploadReceipt(params) {
   
   logAudit("CUSTOMER", "RECEIPT_UPLOADED", "ORDER", ord.orderId, { folio: ord.folio, fileId: fileId });
   
+  // Enviar alerta instantánea por correo al administrador
+  try {
+    var customers = getTableData("CUSTOMERS");
+    var customer = null;
+    for (var c = 0; c < customers.length; c++) {
+      if (customers[c].customerId === ord.customerId) {
+        customer = customers[c];
+        break;
+      }
+    }
+    sendAdminReceiptAlert(ord, fileUrl, customer);
+  } catch (errAlert) {
+    Logger.log("Error al notificar al admin por correo: " + errAlert.message);
+  }
+
   return {
     success: true,
     message: "Comprobante subido exitosamente. El administrador validará tu transferencia.",
@@ -587,9 +712,11 @@ function handleUploadReceipt(params) {
 // --- Búsqueda de Órdenes por Folio, Email o Teléfono (Portal del Asistente) ---
 function handleLookupOrders(params) {
   cleanupExpiredOrdersInternal();
+  ensureOrdersClaimCodeColumn();
   
   var folioQuery = (params.folio || "").trim().toUpperCase();
   var generalQuery = (params.query || "").trim().toLowerCase();
+  var providedClaimCode = (params.claimCode || "").trim().toUpperCase();
   
   if (!folioQuery && !generalQuery) {
     return { success: false, error: "Debe ingresar su folio o su correo/teléfono." };
@@ -654,12 +781,19 @@ function handleLookupOrders(params) {
     if (isMatch && !matchedOrderIds[ord.orderId]) {
       matchedOrderIds[ord.orderId] = true;
       
+      var isPaid = ord.status === "PAGADA";
+      var storedClaimCode = (ord.claimCode || "").trim().toUpperCase();
+      // Si la orden está pagada y tiene un claimCode configurado, requiere que coincida
+      var isUnlocked = !isPaid || !storedClaimCode || (providedClaimCode && providedClaimCode === storedClaimCode);
+      var requiresClaimCode = isPaid && Boolean(storedClaimCode) && !isUnlocked;
+      
       var ordTickets = [];
       for (var k = 0; k < allTickets.length; k++) {
         if (allTickets[k].orderId === ord.orderId) {
           ordTickets.push({
             ticketNumber: allTickets[k].ticketNumber,
-            secureToken: allTickets[k].secureToken,
+            // Proteger token si no ha sido desbloqueado con el código alfanumérico
+            secureToken: isUnlocked ? allTickets[k].secureToken : "",
             attendeeName: allTickets[k].attendeeName || "Invitado",
             status: allTickets[k].status,
             templateIndex: allTickets[k].templateIndex || 1
@@ -674,6 +808,8 @@ function handleLookupOrders(params) {
         totalAmount: Number(ord.totalAmount),
         status: ord.status,
         createdAt: ord.createdAt,
+        unlocked: isUnlocked,
+        requiresClaimCode: requiresClaimCode,
         tickets: ordTickets
       });
     }
@@ -682,6 +818,53 @@ function handleLookupOrders(params) {
   return {
     success: true,
     orders: matchedOrders
+  };
+}
+
+// --- Validación de Código Alfanumérico de Boletos ---
+function handleValidateClaimCode(params) {
+  var folio = (params.folio || "").trim().toUpperCase();
+  var code = (params.claimCode || "").trim().toUpperCase();
+  
+  if (!folio || !code) {
+    return { success: false, error: "Debes ingresar tu folio y el código de seguridad." };
+  }
+  
+  var orders = getTableData("ORDERS");
+  var ord = null;
+  for (var i = 0; i < orders.length; i++) {
+    if (orders[i].folio && orders[i].folio.toUpperCase() === folio) {
+      ord = orders[i];
+      break;
+    }
+  }
+  if (!ord) return { success: false, error: "Orden no encontrada." };
+  
+  var storedCode = (ord.claimCode || "").trim().toUpperCase();
+  if (!storedCode || storedCode !== code) {
+    return { success: false, error: "Código alfanumérico incorrecto para esta orden." };
+  }
+  
+  var allTickets = getTableData("TICKETS");
+  var ordTickets = [];
+  for (var k = 0; k < allTickets.length; k++) {
+    if (allTickets[k].orderId === ord.orderId) {
+      ordTickets.push({
+        ticketNumber: allTickets[k].ticketNumber,
+        secureToken: allTickets[k].secureToken,
+        attendeeName: allTickets[k].attendeeName || "Invitado",
+        status: allTickets[k].status,
+        templateIndex: allTickets[k].templateIndex || 1
+      });
+    }
+  }
+  
+  return {
+    success: true,
+    unlocked: true,
+    folio: ord.folio,
+    orderAccessToken: ord.orderAccessToken,
+    tickets: ordTickets
   };
 }
 
@@ -975,9 +1158,13 @@ function handleReviewPayment(params) {
     var nowIso = new Date().toISOString();
     
     if (params.decision === "APPROVE") {
-      // 1. Orden PAGADA
+      ensureOrdersClaimCodeColumn();
+      var claimCode = (ord.claimCode || "").trim().toUpperCase() || generateClaimCode();
+
+      // 1. Orden PAGADA con claimCode
       updateRow("ORDERS", ord._rowIndex, {
         status: "PAGADA",
+        claimCode: claimCode,
         updatedAt: nowIso
       });
       // 2. Boletos PAGADO
@@ -1004,8 +1191,24 @@ function handleReviewPayment(params) {
           reviewedBy: reviewer
         });
       }
-      logAudit(reviewer, "PAYMENT_APPROVED", "ORDER", ord.orderId, { folio: ord.folio, total: ord.totalAmount });
-      return { success: true, message: "Pago aprobado. Los boletos han sido activados." };
+      
+      // 5. Enviar código de desbloqueo al correo del cliente
+      try {
+        var customers = getTableData("CUSTOMERS");
+        var customer = null;
+        for (var c = 0; c < customers.length; c++) {
+          if (customers[c].customerId === ord.customerId) {
+            customer = customers[c];
+            break;
+          }
+        }
+        sendCustomerClaimCodeEmail(ord, customer, claimCode);
+      } catch (errEmail) {
+        Logger.log("Error al enviar correo con código al comprador: " + errEmail.message);
+      }
+
+      logAudit(reviewer, "PAYMENT_APPROVED", "ORDER", ord.orderId, { folio: ord.folio, total: ord.totalAmount, claimCode: claimCode });
+      return { success: true, message: "Pago aprobado. Se envió el código " + claimCode + " al cliente.", claimCode: claimCode };
     } else {
       // RECHAZAR
       updateRow("ORDERS", ord._rowIndex, {
@@ -1255,6 +1458,9 @@ function handleRequest(e) {
         break;
       case "lookupOrders":
         result = handleLookupOrders(payload);
+        break;
+      case "validateClaimCode":
+        result = handleValidateClaimCode(payload);
         break;
       case "uploadReceipt":
         result = handleUploadReceipt(payload);

@@ -69,3 +69,15 @@ Sigue estos 5 sencillos pasos para dejar listo el backend transaccional en Googl
    NEXT_PUBLIC_APP_URL="http://localhost:3000"
    ```
 3. ¡Listo! Tu plataforma web ahora leerá y escribirá en Google Sheets y guardará los comprobantes en Google Drive en tiempo real.
+
+---
+
+### 🚨 IMPORTANTE: Actualizaciones de Código (Nueva Versión)
+Cada vez que actualices el código de `google-apps-script/Code.js` en tu editor de Apps Script:
+1. Pega el nuevo código y guarda (`Ctrl + S`).
+2. Haz clic en **Implementar > Administrar implementaciones** (Manage Deployments).
+3. Haz clic en el icono del lápiz (**Editar**) en tu implementación activa.
+4. En el menú desplegable **Versión**, selecciona **Nueva versión**.
+5. Haz clic en **Implementar**.
+*¡Listo! Esto asegura que tu URL de producción ejecute inmediatamente los nuevos cambios (alertas de correo, validación de códigos alfanuméricos y desbloqueo seguro).*
+

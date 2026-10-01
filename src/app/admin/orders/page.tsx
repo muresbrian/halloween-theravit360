@@ -63,6 +63,9 @@ export default function AdminOrdersPage() {
 
       const data = await res.json();
       if (data.success) {
+        if (data.message) {
+          alert("✓ " + data.message);
+        }
         await loadOrders();
       } else {
         alert(data.error || "Error al procesar acción.");
@@ -182,6 +185,11 @@ export default function AdminOrdersPage() {
                           <span className="text-[11px] text-zinc-500 font-mono">
                             {new Date(ord.createdAt).toLocaleDateString()} {new Date(ord.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
+                          {ord.claimCode && (
+                            <span className="inline-flex items-center gap-1 mt-1 text-[11px] text-amber-300 font-mono bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-600/30">
+                              Código: {ord.claimCode}
+                            </span>
+                          )}
                         </td>
 
                         <td className="p-4">
