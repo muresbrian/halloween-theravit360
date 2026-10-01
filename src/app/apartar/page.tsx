@@ -42,10 +42,14 @@ function ApartarContent() {
       try {
         const res = await fetch("/api/public/config");
         const data = await res.json();
-        if (data.ticketTypes && data.ticketTypes.length > 0) {
-          setTicketTypes(data.ticketTypes);
-          if (!selectedTypeId) {
-            setSelectedTypeId(data.ticketTypes[0].id);
+        const validTypes = (data.ticketTypes || []).filter(
+          (t: any) => t.id === "TT-GEN" || !t.name.toUpperCase().includes("VIP")
+        );
+        const typesToUse = validTypes.length > 0 ? validTypes : data.ticketTypes || [];
+        if (typesToUse.length > 0) {
+          setTicketTypes(typesToUse);
+          if (!selectedTypeId || !typesToUse.some((t: any) => t.id === selectedTypeId)) {
+            setSelectedTypeId(typesToUse[0].id);
           }
         }
       } catch (e) {

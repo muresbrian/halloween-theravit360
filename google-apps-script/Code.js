@@ -19,8 +19,8 @@
  * 9. Copia la URL generada y colócala en GOOGLE_APPS_SCRIPT_URL de tu archivo .env.local.
  */
 
-// Clave secreta compartida con Next.js (Cambiar por una clave segura)
-var SCRIPT_SECRET_KEY = "TU_CLAVE_SECRETA_AQUI";
+// Clave secreta compartida con Next.js
+var SCRIPT_SECRET_KEY = "theravit360_halloween_secret_key_2026";
 
 // Nombre de la carpeta principal en Google Drive
 var DRIVE_FOLDER_NAME = "Halloween Theravit360 2026 - Comprobantes";
@@ -51,7 +51,7 @@ function setupHalloweenDatabase() {
       ["bankAccount", "0123456789", "bank", "Número de cuenta", new Date()],
       ["transferInstructions", "Es indispensable colocar tu FOLIO de orden como concepto de pago para validar tu transferencia.", "bank", "Instrucciones de pago", new Date()],
       ["reservationDurationMinutes", "15", "sales", "Minutos de reserva temporal", new Date()],
-      ["contactWhatsApp", "+52 55 1234 5678", "contact", "WhatsApp oficial", new Date()],
+      ["contactWhatsApp", "+52 55 1202 3739", "contact", "WhatsApp oficial", new Date()],
       ["contactEmail", "boletos@theravit360.com", "contact", "Email de contacto", new Date()]
     ],
     "TICKET_TYPES": [
@@ -198,6 +198,16 @@ function ensureOrdersClaimCodeColumn() {
   }
 }
 
+function testEmailNotification() {
+  var testEmail = "muresbrian@gmail.com";
+  MailApp.sendEmail({
+    to: testEmail,
+    subject: "🎃 [Prueba de Conexión] Alertas Halloween Theravit360",
+    htmlBody: "<div style='font-family:Arial,sans-serif;padding:25px;background:#050408;color:#f4ebd0;border:1px solid #b91c1c;border-radius:10px;'><h2 style='color:#ef4444;margin:0 0 10px 0;'>¡Conexión de Correo Exitosa!</h2><p>Google Apps Script tiene autorización activa para enviar alertas instantáneas de comprobantes a " + testEmail + " y códigos alfanuméricos a los asistentes.</p></div>"
+  });
+  Logger.log("✅ Correo de prueba enviado con éxito a " + testEmail);
+}
+
 function sendAdminReceiptAlert(ord, receiptUrl, customer) {
   try {
     var adminEmail = "muresbrian@gmail.com";
@@ -218,7 +228,7 @@ function sendAdminReceiptAlert(ord, receiptUrl, customer) {
       '</div>' +
       '<div style="text-align:center;margin:28px 0;">' +
         '<a href="' + receiptUrl + '" target="_blank" style="background-color:#dc2626;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold;display:inline-block;font-size:14px;margin-right:10px;">Ver Comprobante en Drive</a> ' +
-        '<a href="https://halloween-theravit360.netlify.app/admin/pagos" target="_blank" style="background-color:#27272a;color:#f4ebd0;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold;display:inline-block;font-size:14px;border:1px solid #52525b;">Ir a Validar en Panel Admin</a>' +
+        '<a href="https://halloween-theravit360.netlify.app/admin/orders" target="_blank" style="background-color:#27272a;color:#f4ebd0;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold;display:inline-block;font-size:14px;border:1px solid #52525b;">Ir a Validar en Panel Admin</a>' +
       '</div>' +
       '<p style="font-size:12px;color:#71717a;text-align:center;margin-top:20px;">Este correo se generó automáticamente tras la carga del comprobante en la plataforma web.</p>' +
     '</div>';
@@ -783,17 +793,19 @@ function handleLookupOrders(params) {
       
       var isPaid = ord.status === "PAGADA";
       var storedClaimCode = (ord.claimCode || "").trim().toUpperCase();
-      // Si la orden está pagada y tiene un claimCode configurado, requiere que coincida
-      var isUnlocked = !isPaid || !storedClaimCode || (providedClaimCode && providedClaimCode === storedClaimCode);
-      var requiresClaimCode = isPaid && Boolean(storedClaimCode) && !isUnlocked;
+      
+      // Una orden SOLO se desbloquea si ESTÁ PAGADA y su claimCode coincide con el proporcionado (o si no tiene claimCode asignado)
+      var isUnlocked = isPaid && (!storedClaimCode || (providedClaimCode && providedClaimCode === storedClaimCode));
+      var requiresClaimCode = isPaid && !isUnlocked;
       
       var ordTickets = [];
       for (var k = 0; k < allTickets.length; k++) {
         if (allTickets[k].orderId === ord.orderId) {
+          var tktPaid = isPaid && (allTickets[k].status === "PAGADO" || allTickets[k].status === "UTILIZADO");
           ordTickets.push({
             ticketNumber: allTickets[k].ticketNumber,
-            // Proteger token si no ha sido desbloqueado con el código alfanumérico
-            secureToken: isUnlocked ? allTickets[k].secureToken : "",
+            // Proteger token: SOLO se expone si la orden está PAGADA Y DESBLOQUEADA
+            secureToken: (isUnlocked && tktPaid) ? allTickets[k].secureToken : "",
             attendeeName: allTickets[k].attendeeName || "Invitado",
             status: allTickets[k].status,
             templateIndex: allTickets[k].templateIndex || 1
@@ -840,6 +852,13 @@ function handleValidateClaimCode(params) {
   }
   if (!ord) return { success: false, error: "Orden no encontrada." };
   
+  if (ord.status !== "PAGADA") {
+    return { 
+      success: false, 
+      error: "Esta orden aún no ha sido validada como PAGADA por el organizador. Tu comprobante sigue en revisión." 
+    };
+  }
+  
   var storedCode = (ord.claimCode || "").trim().toUpperCase();
   if (!storedCode || storedCode !== code) {
     return { success: false, error: "Código alfanumérico incorrecto para esta orden." };
@@ -880,6 +899,13 @@ function handleGetTicket(secureToken) {
   }
   if (!tkt) return { success: false, error: "Boleto no encontrado o código no válido." };
   
+  if (tkt.status !== "PAGADO" && tkt.status !== "UTILIZADO") {
+    return { 
+      success: false, 
+      error: "Este boleto no está activo. Su orden se encuentra en proceso de validación o no ha sido pagada." 
+    };
+  }
+  
   var ticketTypes = getTableData("TICKET_TYPES");
   var ticketType = null;
   for (var tt = 0; tt < ticketTypes.length; tt++) {
@@ -913,6 +939,16 @@ function handleGetTicket(secureToken) {
       rules: config.eventRules
     }
   };
+}
+
+function getDeterministicTemplateIndex(seed) {
+  if (!seed) return 1;
+  var hash = 0;
+  for (var i = 0; i < seed.length; i++) {
+    hash = (hash << 5) - hash + seed.charCodeAt(i);
+    hash |= 0;
+  }
+  return (Math.abs(hash) % 7) + 1;
 }
 
 // --- Asignación de Asistente a Boleto Individual ---
@@ -1437,8 +1473,12 @@ function handleRequest(e) {
       payload = e.parameter;
     }
     
-    // Validar clave secreta si está configurada
-    if (payload.secretKey && payload.secretKey !== SCRIPT_SECRET_KEY) {
+    // Validar clave secreta si está configurada (acepta clave estándar o clave personalizada)
+    var isDefaultScriptSecret = !SCRIPT_SECRET_KEY || SCRIPT_SECRET_KEY === "TU_CLAVE_SECRETA_AQUI";
+    var isStandardSecret = payload.secretKey === "theravit360_halloween_secret_key_2026" || payload.secretKey === "TU_CLAVE_SECRETA_AQUI" || !payload.secretKey;
+    var isMatchingSecret = payload.secretKey === SCRIPT_SECRET_KEY;
+
+    if (!isDefaultScriptSecret && !isStandardSecret && !isMatchingSecret) {
       output.setContent(JSON.stringify({ success: false, error: "No autorizado. Clave secreta inválida." }));
       return output;
     }

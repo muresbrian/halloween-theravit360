@@ -78,7 +78,7 @@ export default function Footer() {
 
           <div className="mt-6">
             <a
-              href="https://wa.me/525512345678"
+              href="https://wa.me/525512023739"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800/80 border border-zinc-700/80 text-zinc-300 text-xs font-medium transition-colors"

@@ -22,6 +22,7 @@ import {
   User,
   Download,
   Sparkles,
+  Mail,
 } from "lucide-react";
 import { downloadTicketPdf } from "@/lib/pdf-ticket";
 import { resolveTicketTemplate } from "@/lib/ticket-templates";
@@ -187,6 +188,7 @@ export default function OrderPage({
 
       setUploadSuccess(true);
       await fetchOrder();
+      alert("✓ ¡Comprobante recibido con éxito!\n\nNuestro equipo revisará tu transferencia a la brevedad. En cuanto sea aprobada, recibirás un correo electrónico con tu Código Alfanumérico de Seguridad único y las instrucciones para acceder y descargar tus boletos digitales.");
     } catch (err: any) {
       setErrorMessage("Error al enviar archivo: " + err.message);
     } finally {
@@ -262,14 +264,24 @@ export default function OrderPage({
           )}
 
           {isPending && (
-            <div className="p-6 rounded-3xl bg-blue-950/30 border border-blue-500/30 flex items-center gap-4">
-              <FileCheck className="w-8 h-8 text-blue-400 shrink-0" />
-              <div>
-                <h3 className="font-bold text-white text-base">Comprobante en Revisión</h3>
-                <p className="text-xs text-blue-200/80 mt-0.5">
-                  Hemos recibido tu comprobante bancario. El administrador validará tu transferencia y tus códigos QR se
-                  activarán en breve. El temporizador ha sido pausado.
+            <div className="p-6 sm:p-7 rounded-3xl bg-gradient-to-r from-blue-950/40 via-[#101428] to-blue-950/40 border-2 border-blue-500/40 flex flex-col sm:flex-row items-start sm:items-center gap-4 shadow-xl">
+              <div className="w-12 h-12 rounded-2xl bg-blue-950 border border-blue-400/40 flex items-center justify-center shrink-0">
+                <FileCheck className="w-6 h-6 text-blue-400" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-bold text-white text-base flex items-center gap-2">
+                  <span>Comprobante Recibido · En Proceso de Validación</span>
+                  <span className="text-[10px] font-mono bg-blue-900/60 text-blue-300 px-2 py-0.5 rounded-full border border-blue-400/30">
+                    PAUSADO
+                  </span>
+                </h3>
+                <p className="text-xs text-blue-200/90 leading-relaxed">
+                  Hemos recibido tu comprobante bancario exitosamente. En cuanto nuestro equipo valide tu transferencia, <strong>recibirás un correo electrónico con tu Código Alfanumérico de Seguridad único y las instrucciones</strong> para desbloquear y descargar tus boletos digitales y códigos QR oficiales.
                 </p>
+                <div className="pt-1 text-[11px] text-zinc-400 flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <span>Mantente atento a tu correo ({orderData.customer?.email || "registrado"}). El temporizador de reserva ha sido pausado.</span>
+                </div>
               </div>
             </div>
           )}
@@ -399,7 +411,7 @@ export default function OrderPage({
 
             <div className="mt-6 flex items-center gap-4">
               <a
-                href={`https://wa.me/525512345678?text=${whatsappMessage}`}
+                href={`https://wa.me/525512023739?text=${whatsappMessage}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-emerald-400 text-xs font-bold hover:bg-emerald-900/40 transition-colors"

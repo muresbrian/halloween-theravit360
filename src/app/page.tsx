@@ -30,7 +30,14 @@ export const dynamic = "force-dynamic";
 export default async function HomePage() {
   const data = await callAppsScript("getConfig");
   const config = data.config || {};
-  const ticketTypes = data.ticketTypes || [];
+  const rawTicketTypes = data.ticketTypes || [];
+  // Exclusivamente 1 tipo de boleto: GENERAL PASS
+  const ticketTypes = rawTicketTypes.filter(
+    (t: any) => t.id === "TT-GEN" || !t.name.toUpperCase().includes("VIP")
+  );
+  if (ticketTypes.length === 0 && rawTicketTypes.length > 0) {
+    ticketTypes.push(rawTicketTypes[0]);
+  }
 
   const eventName = config.eventName || "HALLOWEEN THERAVIT360";
   const eventDate = config.eventDate || "31 de Octubre, 2026";
@@ -56,22 +63,22 @@ export default async function HomePage() {
     {
       num: "01",
       q: "¿Cómo funciona la reserva y compra de boletos?",
-      a: "Eliges tu tipo de acceso (General o VIP) en la taquilla. El sistema aparta tus boletos en tiempo real durante 15 minutos mientras realizas la transferencia bancaria con tu folio único y adjuntas tu comprobante en la misma pantalla.",
+      a: "Seleccionas la cantidad de accesos General Pass en la taquilla oficial. El sistema aparta tus boletos en tiempo real durante 15 minutos mientras realizas tu transferencia bancaria a los datos de la pantalla y subes tu comprobante. En cuanto validemos tu pago, recibirás un correo con tu clave única alfanumérica para desbloquear y descargar tus boletos.",
     },
     {
       num: "02",
       q: "¿Cuándo y cómo recibo mis códigos QR de acceso?",
-      a: "En cuanto el administrador valida tu pago, tu orden pasa a estado PAGADA y se desbloquean inmediatamente los códigos QR únicos de cada boleto adquirido. Puedes descargarlos en PDF en un solo clic o compartirlos por WhatsApp a tus invitados.",
+      a: "En cuanto el administrador valida tu pago bancario, recibirás un correo electrónico con tu Código Alfanumérico de Seguridad único (ej. THV-XXXXXX). Con este código único podrás entrar a la sección 'Mis Boletos' o usar el botón directo del correo para desbloquear y descargar tus boletos oficiales.",
     },
     {
       num: "03",
-      q: "¿Cada boleto es individual e intransferible?",
-      a: "Sí. Cada entrada genera un código QR criptográfico independiente. Puedes asignar el nombre de cada invitado a su boleto digital. El acceso de una persona no afecta la validez de los demás boletos de tu orden.",
+      q: "¿Por qué se requiere una clave alfanumérica única para descargar los boletos?",
+      a: "Por máxima seguridad antifraude. Así garantizamos que únicamente la persona que realizó la compra y recibió el correo de confirmación pueda visualizar y descargar los códigos QR de acceso, evitando que terceros descarguen boletos ajenos conociendo solo un número de orden o correo.",
     },
     {
       num: "04",
-      q: "¿Cómo es el protocolo de ingreso al recinto?",
-      a: "El personal de puerta escaneará tu código QR con el lector oficial del evento. Al ser validado, el boleto queda automáticamente registrado como UTILIZADO en la base de datos, imposibilitando cualquier doble uso o falsificación.",
+      q: "¿Cada boleto es individual e intransferible?",
+      a: "Sí. Cada entrada genera un código QR criptográfico independiente. Puedes asignar el nombre de cada invitado a su pase digital. El acceso de una persona no afecta la validez de los demás boletos de tu orden.",
     },
   ];
 
@@ -317,26 +324,19 @@ export default async function HomePage() {
             </p>
           </div>
 
-          {/* Tarjetas de Pases (Taquilla de Circo) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          {/* Tarjeta de Pase General Oficial (Taquilla de Circo) */}
+          <div className="max-w-xl mx-auto">
             {ticketTypes.map((type: any) => {
               const isSoldOut = type.available <= 0;
-              const isVip = type.name.toUpperCase().includes("VIP");
 
               return (
                 <div
                   key={type.id}
-                  className={`relative rounded-3xl p-8 sm:p-9 transition-all duration-300 flex flex-col justify-between ${
-                    isVip
-                      ? "bg-gradient-to-b from-[#18090d] via-[#100609] to-[#0a0406] border-2 border-red-600/60 shadow-2xl shadow-red-950/40 hover:scale-[1.02]"
-                      : "bg-[#0c090c] border border-zinc-800/90 hover:border-red-900/50 hover:scale-[1.01]"
-                  }`}
+                  className="relative rounded-3xl p-8 sm:p-10 transition-all duration-300 flex flex-col justify-between bg-gradient-to-b from-[#18090d] via-[#100609] to-[#0a0406] border-2 border-red-600/60 shadow-2xl shadow-red-950/40 hover:scale-[1.01]"
                 >
-                  {isVip && (
-                    <div className="absolute -top-3.5 right-8 bg-gradient-to-r from-red-800 to-red-600 text-[#f4ebd0] font-mono font-bold text-[9px] px-4 py-1 rounded-full uppercase tracking-widest shadow-lg shadow-red-950/60 border border-red-400/40">
-                      ACCESO PREFERENCIAL
-                    </div>
-                  )}
+                  <div className="absolute -top-3.5 right-8 bg-gradient-to-r from-red-800 to-red-600 text-[#f4ebd0] font-mono font-bold text-[9px] px-4 py-1 rounded-full uppercase tracking-widest shadow-lg shadow-red-950/60 border border-red-400/40">
+                    BOLETO OFICIAL · ACCESO GENERAL
+                  </div>
 
                   <div>
                     <div className="flex items-start justify-between">
@@ -455,7 +455,7 @@ export default async function HomePage() {
             </p>
             <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
               <a
-                href={`https://wa.me/${(config.contactWhatsApp || "+525512345678").replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
+                href={`https://wa.me/${(config.contactWhatsApp || "+525512023739").replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
                   "Hola, tengo dudas sobre mis boletos de Halloween Theravit360 2026."
                 )}`}
                 target="_blank"

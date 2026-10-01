@@ -19,6 +19,14 @@ export async function GET(
     }
 
     const ticket = result.ticket;
+
+    if (ticket.status !== "PAGADO" && ticket.status !== "UTILIZADO") {
+      return NextResponse.json(
+        { error: "Este boleto aún no está disponible. Su orden se encuentra en proceso de validación de pago." },
+        { status: 403 }
+      );
+    }
+
     const template = resolveTicketTemplate(ticket);
     let qrDataUrl = null;
 

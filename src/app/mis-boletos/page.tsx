@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   Mail,
   CheckCircle2,
+  Clock,
 } from "lucide-react";
 
 function MisBoletosContent() {
@@ -44,6 +45,12 @@ function MisBoletosContent() {
   async function performSearch(f: string, q: string, c?: string) {
     if (!f.trim() && !q.trim()) {
       setErrorMessage("Por favor ingresa tu folio o tu correo/teléfono.");
+      return;
+    }
+
+    const cleanCode = (c || "").trim().toUpperCase();
+    if (!cleanCode) {
+      setErrorMessage("El código alfanumérico de desbloqueo es obligatorio. Revisa el correo que te enviamos al validar tu pago.");
       return;
     }
 
@@ -188,7 +195,7 @@ function MisBoletosContent() {
           Consultar Mis Boletos
         </h1>
         <p className="text-xs sm:text-sm text-zinc-400 mt-2 max-w-xl mx-auto font-light leading-relaxed">
-          Ingresa tu folio de orden (ej. <span className="font-mono text-zinc-300">HAL-2026-0042</span>) o el correo con el que realizaste tu compra para consultar tus boletos.
+          Ingresa tu folio o correo junto con tu <strong>código alfanumérico obligatorio</strong> enviado a tu correo al validar tu transferencia para acceder a tus pases y códigos QR.
         </p>
       </div>
 
@@ -224,16 +231,22 @@ function MisBoletosContent() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-1.5 font-mono flex items-center justify-between">
-              <span>Código Alfanumérico de Desbloqueo (Opcional)</span>
-              <span className="text-[10px] text-zinc-500 font-sans normal-case">Enviado a tu correo al validar pago</span>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-300 mb-1.5 font-mono flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <span>Código Alfanumérico de Desbloqueo</span>
+                <span className="text-[9px] bg-red-950 text-red-300 border border-red-500/50 px-2 py-0.5 rounded-full font-bold">
+                  OBLIGATORIO
+                </span>
+              </span>
+              <span className="text-[10px] text-zinc-400 font-sans normal-case">Enviado a tu correo al validar pago</span>
             </label>
             <input
               type="text"
+              required
               placeholder="Ej. THV-84A92K"
               value={claimCodeInput}
               onChange={(e) => setClaimCodeInput(e.target.value.toUpperCase())}
-              className="w-full px-4 py-3 rounded-xl bg-[#14121a] border border-zinc-800 focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none text-[#f4ebd0] text-sm font-mono uppercase tracking-wider"
+              className="w-full px-4 py-3 rounded-xl bg-[#14121a] border border-zinc-800 focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none text-[#f4ebd0] text-sm font-mono uppercase tracking-wider font-bold"
             />
           </div>
 
@@ -273,7 +286,9 @@ function MisBoletosContent() {
 
           {orders.map((ord) => {
             const isPaid = ord.status === "PAGADA";
-            const isUnlocked = ord.unlocked !== false;
+            const isUnlocked = isPaid && Boolean(ord.unlocked);
+            const isPendingValidation = ord.status === "COMPROBANTE_RECIBIDO";
+            const isPendingPayment = ord.status === "RESERVADA" || ord.status === "PENDIENTE_PAGO";
 
             return (
               <div
@@ -295,7 +310,7 @@ function MisBoletosContent() {
                       className={`text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full font-mono ${
                         isPaid
                           ? "bg-emerald-950/80 text-emerald-400 border border-emerald-500/30"
-                          : ord.status === "COMPROBANTE_RECIBIDO"
+                          : isPendingValidation
                           ? "bg-amber-950/80 text-amber-300 border border-amber-500/30"
                           : "bg-red-950/80 text-red-300 border border-red-500/30"
                       }`}
@@ -313,6 +328,43 @@ function MisBoletosContent() {
                   </div>
                 </div>
 
+                {/* Si la orden está con COMPROBANTE_RECIBIDO: Banner informativo en ámbar */}
+                {isPendingValidation && (
+                  <div className="p-5 rounded-2xl bg-amber-950/30 border border-amber-500/40 text-amber-200 text-xs flex items-start gap-3.5 shadow-lg">
+                    <div className="w-10 h-10 rounded-xl bg-amber-950/90 border border-amber-500/40 flex items-center justify-center shrink-0 mt-0.5">
+                      <Clock className="w-5 h-5 text-amber-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-bold text-amber-300 uppercase tracking-wide flex items-center gap-2">
+                        <span>Comprobante en Proceso de Validación</span>
+                        <span className="text-[10px] font-mono bg-amber-900/60 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30">
+                          EN REVISIÓN
+                        </span>
+                      </h4>
+                      <p className="text-zinc-300 leading-relaxed">
+                        Hemos recibido tu comprobante para este folio. El administrador está validando tu transferencia bancaria. Por seguridad, tus pases se mantendrán protegidos hasta que el pago sea aprobado; en ese momento <strong>recibirás un correo con el código alfanumérico</strong> único para desbloquearlos.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Si la orden está en RESERVADA o PENDIENTE_PAGO */}
+                {isPendingPayment && (
+                  <div className="p-4 sm:p-5 rounded-2xl bg-zinc-900/60 border border-zinc-700/50 flex items-start gap-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0 mt-0.5">
+                      <AlertCircle className="w-5 h-5 text-zinc-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-bold text-zinc-200 uppercase tracking-wide">
+                        Orden Pendiente de Pago
+                      </h4>
+                      <p className="text-xs text-zinc-400 leading-relaxed">
+                        Esta orden aún no cuenta con comprobante de pago. Haz clic en <strong>Ver Orden</strong> para consultar los datos bancarios y subir tu comprobante.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Si la orden está PAGADA pero BLOQUEADA: Card de Seguridad */}
                 {isPaid && !isUnlocked && (
                   <div className="p-6 rounded-2xl bg-gradient-to-b from-[#1b101c] to-[#110d18] border border-red-600/40 shadow-xl space-y-4">
@@ -325,7 +377,7 @@ function MisBoletosContent() {
                           Boletos Protegidos con Código de Seguridad
                         </h4>
                         <p className="text-xs text-zinc-300 mt-1 leading-relaxed">
-                          Por seguridad, para prevenir que terceros descarguen tus boletos, ingresa el <strong>código alfanumérico</strong> (ej. <span className="font-mono text-red-300 font-bold">THV-XXXXXX</span>) que enviamos a tu correo electrónico al aprobar tu pago.
+                          Esta orden ya está pagada. Por seguridad, ingresa el <strong>código alfanumérico</strong> (ej. <span className="font-mono text-red-300 font-bold">THV-XXXXXX</span>) que enviamos a tu correo al validar tu transferencia para desbloquear los pases:
                         </p>
                       </div>
                     </div>
@@ -372,7 +424,7 @@ function MisBoletosContent() {
 
                     <div className="flex items-center gap-2 text-[11px] text-zinc-400 pt-1 border-t border-zinc-800/80">
                       <Mail className="w-3.5 h-3.5 text-red-400 shrink-0" />
-                      <span>Revisa tu bandeja de entrada o spam. También puedes abrir el enlace directo incluido en el correo.</span>
+                      <span>Revisa tu bandeja de entrada o spam. Cada compra tiene su propio código alfanumérico.</span>
                     </div>
                   </div>
                 )}
@@ -392,16 +444,20 @@ function MisBoletosContent() {
                 <div>
                   <h3 className="text-xs font-mono uppercase tracking-wider text-[#f4ebd0] font-bold mb-3 flex items-center justify-between">
                     <span>Boletos Individuales ({ord.tickets?.length || ord.quantity})</span>
-                    {!isUnlocked && isPaid && (
+                    {!isPaid ? (
+                      <span className="text-[10px] text-amber-400/90 font-mono flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> Pago en Revisión
+                      </span>
+                    ) : !isUnlocked ? (
                       <span className="text-[10px] text-amber-400/90 font-mono flex items-center gap-1">
                         <Lock className="w-3 h-3" /> Requiere Código para Acceso
                       </span>
-                    )}
+                    ) : null}
                   </h3>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {(ord.tickets || []).map((tkt: any) => {
-                      const canAccess = isUnlocked && Boolean(tkt.secureToken);
+                      const canAccess = isPaid && isUnlocked && Boolean(tkt.secureToken);
 
                       return (
                         <div
@@ -428,12 +484,28 @@ function MisBoletosContent() {
                               <ExternalLink className="w-3.5 h-3.5 text-red-400" />
                               <span>Ver Pase</span>
                             </a>
+                          ) : isPendingValidation ? (
+                            <div
+                              className="px-3 py-1.5 rounded-lg bg-amber-950/40 text-amber-300 border border-amber-500/30 text-xs font-semibold flex items-center gap-1.5 cursor-not-allowed"
+                              title="Comprobante en proceso de validación por el organizador"
+                            >
+                              <Clock className="w-3.5 h-3.5 text-amber-400" />
+                              <span>En Revisión</span>
+                            </div>
+                          ) : !isPaid ? (
+                            <div
+                              className="px-3 py-1.5 rounded-lg bg-zinc-900/80 text-zinc-500 border border-zinc-800 text-xs font-semibold flex items-center gap-1.5 cursor-not-allowed"
+                              title="Orden pendiente de pago"
+                            >
+                              <Lock className="w-3.5 h-3.5 text-zinc-500" />
+                              <span>Sin Pagar</span>
+                            </div>
                           ) : (
                             <div
                               className="px-3 py-1.5 rounded-lg bg-zinc-900/80 text-zinc-500 border border-zinc-800 text-xs font-semibold flex items-center gap-1.5 cursor-not-allowed"
                               title="Debes validar el código alfanumérico para abrir este pase"
                             >
-                              <Lock className="w-3 h-3 text-zinc-500" />
+                              <Lock className="w-3.5 h-3.5 text-zinc-500" />
                               <span>Bloqueado</span>
                             </div>
                           )}
