@@ -28,8 +28,17 @@ export async function callAppsScript(action: string, payload: Record<string, any
       });
 
       const data = await response.json();
+
+      // Fallback transparente si la versión de Apps Script desplegada aún no tiene lookupOrders
+      if (action === "lookupOrders" && (!data.success && (data.error === "Acción no soportada." || data.error?.includes("Acción")))) {
+        return await fallbackLookupOrders(payload);
+      }
+
       return data;
     } catch (error: any) {
+      if (action === "lookupOrders") {
+        return await fallbackLookupOrders(payload);
+      }
       console.error(`Error llamando a Apps Script [action=${action}]:`, error);
       return { success: false, error: "Error de conexión con Google Apps Script: " + error.message };
     }
@@ -37,6 +46,103 @@ export async function callAppsScript(action: string, payload: Record<string, any
 
   // Fallback: Mock Store Local en memoria para desarrollo inmediato sin bloqueos
   return mockAppsScriptEngine(action, payload);
+}
+
+/**
+ * Fallback de búsqueda de órdenes que consulta los registros en Google Sheets
+ * en caso de que la Web App aún no haya implementado la acción nativa lookupOrders.
+ */
+async function fallbackLookupOrders(payload: Record<string, any>): Promise<any> {
+  const folioQuery = (payload.folio || "").trim().toUpperCase();
+  const rawQuery = (payload.query || "").trim().toLowerCase();
+  const cleanDigits = rawQuery.replace(/[^0-9]/g, "");
+
+  try {
+    const ordersRes = await callAppsScript("getAdminOrders");
+    if (!ordersRes || !ordersRes.success || !ordersRes.orders) {
+      return { success: false, error: "No fue posible consultar las órdenes." };
+    }
+
+    const ticketsRes = await callAppsScript("getAdminTickets");
+    const allTickets: any[] = (ticketsRes && ticketsRes.tickets) || [];
+
+    const matchedOrders: any[] = [];
+    const matchedOrderIds = new Set<string>();
+
+    for (const ord of ordersRes.orders) {
+      let isMatch = false;
+
+      // 1. Coincidencia directa por folio
+      if (folioQuery && ord.folio && ord.folio.toUpperCase().includes(folioQuery)) {
+        isMatch = true;
+      }
+
+      // 2. Coincidencia por teléfono en boletos
+      if (!isMatch && cleanDigits.length >= 7) {
+        const ordTickets = allTickets.filter((t: any) => t.orderId === ord.orderId);
+        for (const tkt of ordTickets) {
+          const tPhone = String(tkt.attendeePhone || "").replace(/[^0-9]/g, "");
+          if (tPhone && tPhone.includes(cleanDigits)) {
+            isMatch = true;
+            break;
+          }
+        }
+      }
+
+      // 3. Coincidencia por correo, nombre o teléfono consultando el pedido individual
+      if (!isMatch && rawQuery && ord.orderAccessToken) {
+        try {
+          const single = await callAppsScript("getOrder", { orderAccessToken: ord.orderAccessToken });
+          if (single && single.success && single.order && single.order.customer) {
+            const cust = single.order.customer;
+            const email = (cust.email || "").toLowerCase();
+            const name = (cust.name || "").toLowerCase();
+            const phone = String(cust.phone || "").replace(/[^0-9]/g, "");
+
+            if (email && email.includes(rawQuery)) {
+              isMatch = true;
+            } else if (cleanDigits.length >= 7 && phone && phone.includes(cleanDigits)) {
+              isMatch = true;
+            } else if (name && name.includes(rawQuery)) {
+              isMatch = true;
+            }
+          }
+        } catch {
+          // continuar con siguiente orden
+        }
+      }
+
+      if (isMatch && !matchedOrderIds.has(ord.orderId)) {
+        matchedOrderIds.add(ord.orderId);
+        const ordTickets = allTickets
+          .filter((t: any) => t.orderId === ord.orderId)
+          .map((t: any) => ({
+            ticketNumber: t.ticketNumber,
+            secureToken: t.secureToken,
+            attendeeName: t.attendeeName || "Invitado",
+            status: t.status,
+            templateIndex: t.templateIndex || resolveTicketTemplate(t).id,
+          }));
+
+        matchedOrders.push({
+          folio: ord.folio,
+          orderAccessToken: ord.orderAccessToken,
+          quantity: Number(ord.quantity),
+          totalAmount: Number(ord.totalAmount),
+          status: ord.status,
+          createdAt: ord.createdAt,
+          tickets: ordTickets,
+        });
+      }
+    }
+
+    return {
+      success: true,
+      orders: matchedOrders,
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Error al buscar órdenes" };
+  }
 }
 
 // ============================================================================
@@ -376,6 +482,51 @@ async function mockAppsScriptEngine(action: string, payload: Record<string, any>
           rules: db.config.eventRules,
         },
       };
+    }
+
+    case "lookupOrders": {
+      const folioQuery = (payload.folio || "").trim().toUpperCase();
+      const rawQuery = (payload.query || "").trim().toLowerCase();
+      const cleanDigits = rawQuery.replace(/[^0-9]/g, "");
+
+      const matchedOrders: any[] = [];
+      for (const ord of db.orders) {
+        const cust = db.customers.find((c) => c.customerId === ord.customerId);
+        let match = false;
+        if (folioQuery && ord.folio && ord.folio.toUpperCase().includes(folioQuery)) {
+          match = true;
+        }
+        if (!match && rawQuery && cust) {
+          const email = (cust.email || "").toLowerCase();
+          const phone = String(cust.phone || "").replace(/[^0-9]/g, "");
+          if (email && email.includes(rawQuery)) match = true;
+          else if (cleanDigits.length >= 7 && phone && phone.includes(cleanDigits)) match = true;
+          else if (cust.name && cust.name.toLowerCase().includes(rawQuery)) match = true;
+        }
+
+        if (match) {
+          const ordTickets = db.tickets
+            .filter((t) => t.orderId === ord.orderId)
+            .map((t) => ({
+              ticketNumber: t.ticketNumber,
+              secureToken: t.secureToken,
+              attendeeName: t.attendeeName || "Invitado",
+              status: t.status,
+              templateIndex: t.templateIndex || resolveTicketTemplate(t).id,
+            }));
+
+          matchedOrders.push({
+            folio: ord.folio,
+            orderAccessToken: ord.orderAccessToken,
+            quantity: ord.quantity,
+            totalAmount: ord.totalAmount,
+            status: ord.status,
+            createdAt: ord.createdAt,
+            tickets: ordTickets,
+          });
+        }
+      }
+      return { success: true, orders: matchedOrders };
     }
 
     case "updateAttendee": {

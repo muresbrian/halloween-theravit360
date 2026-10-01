@@ -584,6 +584,107 @@ function handleUploadReceipt(params) {
   };
 }
 
+// --- Búsqueda de Órdenes por Folio, Email o Teléfono (Portal del Asistente) ---
+function handleLookupOrders(params) {
+  cleanupExpiredOrdersInternal();
+  
+  var folioQuery = (params.folio || "").trim().toUpperCase();
+  var generalQuery = (params.query || "").trim().toLowerCase();
+  
+  if (!folioQuery && !generalQuery) {
+    return { success: false, error: "Debe ingresar su folio o su correo/teléfono." };
+  }
+  
+  var orders = getTableData("ORDERS");
+  var customers = getTableData("CUSTOMERS");
+  var allTickets = getTableData("TICKETS");
+  
+  // Mapa de clientes por customerId
+  var customerMap = {};
+  for (var c = 0; c < customers.length; c++) {
+    customerMap[customers[c].customerId] = customers[c];
+  }
+  
+  var matchedOrders = [];
+  var matchedOrderIds = {};
+  
+  for (var i = 0; i < orders.length; i++) {
+    var ord = orders[i];
+    var cust = customerMap[ord.customerId] || {};
+    var isMatch = false;
+    
+    // 1. Coincidencia por folio
+    if (folioQuery && ord.folio && ord.folio.toUpperCase().indexOf(folioQuery) !== -1) {
+      isMatch = true;
+    }
+    
+    // 2. Coincidencia por correo o teléfono en cliente
+    if (!isMatch && generalQuery) {
+      var email = (cust.email || "").toLowerCase();
+      var phone = String(cust.phone || "").replace(/[^0-9]/g, "");
+      var cleanQueryDigits = generalQuery.replace(/[^0-9]/g, "");
+      
+      if (email && email.indexOf(generalQuery) !== -1) {
+        isMatch = true;
+      } else if (cleanQueryDigits.length >= 7 && phone && phone.indexOf(cleanQueryDigits) !== -1) {
+        isMatch = true;
+      } else if (cust.name && cust.name.toLowerCase().indexOf(generalQuery) !== -1) {
+        isMatch = true;
+      }
+    }
+    
+    // 3. Coincidencia por teléfono o nombre en boletos
+    if (!isMatch && generalQuery) {
+      for (var t = 0; t < allTickets.length; t++) {
+        if (allTickets[t].orderId === ord.orderId) {
+          var tktPhone = String(allTickets[t].attendeePhone || "").replace(/[^0-9]/g, "");
+          var cleanQueryDigits = generalQuery.replace(/[^0-9]/g, "");
+          if (cleanQueryDigits.length >= 7 && tktPhone && tktPhone.indexOf(cleanQueryDigits) !== -1) {
+            isMatch = true;
+            break;
+          }
+          if (allTickets[t].attendeeName && allTickets[t].attendeeName.toLowerCase().indexOf(generalQuery) !== -1) {
+            isMatch = true;
+            break;
+          }
+        }
+      }
+    }
+    
+    if (isMatch && !matchedOrderIds[ord.orderId]) {
+      matchedOrderIds[ord.orderId] = true;
+      
+      var ordTickets = [];
+      for (var k = 0; k < allTickets.length; k++) {
+        if (allTickets[k].orderId === ord.orderId) {
+          ordTickets.push({
+            ticketNumber: allTickets[k].ticketNumber,
+            secureToken: allTickets[k].secureToken,
+            attendeeName: allTickets[k].attendeeName || "Invitado",
+            status: allTickets[k].status,
+            templateIndex: allTickets[k].templateIndex || 1
+          });
+        }
+      }
+      
+      matchedOrders.push({
+        folio: ord.folio,
+        orderAccessToken: ord.orderAccessToken,
+        quantity: Number(ord.quantity),
+        totalAmount: Number(ord.totalAmount),
+        status: ord.status,
+        createdAt: ord.createdAt,
+        tickets: ordTickets
+      });
+    }
+  }
+  
+  return {
+    success: true,
+    orders: matchedOrders
+  };
+}
+
 // --- Consulta de Boleto Individual por secureToken ---
 function handleGetTicket(secureToken) {
   var tickets = getTableData("TICKETS");
@@ -1151,6 +1252,9 @@ function handleRequest(e) {
         break;
       case "getOrder":
         result = handleGetOrder(payload.orderAccessToken);
+        break;
+      case "lookupOrders":
+        result = handleLookupOrders(payload);
         break;
       case "uploadReceipt":
         result = handleUploadReceipt(payload);
