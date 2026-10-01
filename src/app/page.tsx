@@ -80,6 +80,11 @@ export default async function HomePage() {
       q: "¿Cada boleto es individual e intransferible?",
       a: "Sí. Cada entrada genera un código QR criptográfico independiente. Puedes asignar el nombre de cada invitado a su pase digital. El acceso de una persona no afecta la validez de los demás boletos de tu orden.",
     },
+    {
+      num: "05",
+      q: "¿Puedo llevar mis propias bebidas o qué incluye mi entrada?",
+      a: "¡Sí! El precio de tu boleto incluye una bebida de cortesía al momento de tu llegada. Además, está permitido que lleves tus propias bebidas al evento sin ningún costo adicional.",
+    },
   ];
 
   return (

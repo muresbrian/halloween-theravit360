@@ -265,20 +265,27 @@ function sendCustomerClaimCodeEmail(ord, customer, claimCode) {
         '</div>' +
         '<p style="font-size:12px;color:#a1a1aa;margin-top:12px;">Usa este código en la web para desbloquear y descargar tus boletos digitales.</p>' +
       '</div>' +
-      '<div style="text-align:center;margin:30px 0;">' +
+      '<div style="text-align:center;margin:28px 0;">' +
         '<a href="' + unlockUrl + '" target="_blank" style="background-color:#dc2626;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:bold;display:inline-block;font-size:15px;box-shadow:0 4px 15px rgba(220,38,38,0.4);">' +
           'Desbloquear y Descargar Boletos Directamente' +
         '</a>' +
       '</div>' +
-      '<div style="background-color:#181422;padding:16px;border-radius:8px;margin-top:20px;font-size:12px;color:#a1a1aa;border-left:4px solid #ef4444;">' +
-        '<p style="margin:0 0 6px 0;"><strong>Importante:</strong></p>' +
-        '<ul style="margin:0;padding-left:18px;">' +
+      '<div style="background-color:#101a15;padding:16px 20px;border-radius:10px;margin:20px 0;border:1px solid #10b981;color:#ecfdf5;">' +
+        '<p style="margin:0 0 8px 0;font-size:14px;font-weight:bold;color:#34d399;">🍹 Información de Bebidas y Beneficios:</p>' +
+        '<ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.6;color:#d1fae5;">' +
+          '<li><strong>Bebida de cortesía:</strong> El precio de tu entrada incluye una bebida de cortesía al ingresar.</li>' +
+          '<li><strong>Lleva tu propia bebida:</strong> Puedes llevar tus propias bebidas al evento sin ningún costo adicional.</li>' +
+        '</ul>' +
+      '</div>' +
+      '<div style="background-color:#181422;padding:16px;border-radius:8px;margin-top:15px;font-size:12px;color:#a1a1aa;border-left:4px solid #ef4444;">' +
+        '<p style="margin:0 0 6px 0;"><strong>Importante para el acceso:</strong></p>' +
+        '<ul style="margin:0;padding-left:18px;line-height:1.5;">' +
           '<li>Cada boleto cuenta con un código QR único e intransferible.</li>' +
           '<li>Guarda tus boletos en tu celular o descárgalos en PDF antes de llegar al evento.</li>' +
           '<li>El evento inicia a las 20:00 hrs en Theravit 360°. Presenta tu identificación oficial y disfraz.</li>' +
         '</ul>' +
       '</div>' +
-      '<p style="font-size:11px;color:#52525b;text-align:center;margin-top:25px;">Theravit360 Eventos • Si tienes dudas, contáctanos vía WhatsApp oficial.</p>' +
+      '<p style="font-size:11px;color:#52525b;text-align:center;margin-top:25px;">Theravit360 Eventos • Si tienes dudas, contáctanos vía WhatsApp oficial (55 1202 3739).</p>' +
     '</div>';
 
     MailApp.sendEmail({
