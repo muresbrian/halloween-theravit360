@@ -62,28 +62,26 @@ export default function Footer() {
         </div>
 
         <div>
-          <h4 className="text-xs font-mono font-bold text-zinc-200 uppercase tracking-widest mb-4">Administración</h4>
+          <h4 className="text-xs font-mono font-bold text-[#f4ebd0] uppercase tracking-widest mb-4">Atención & Ayuda</h4>
           <ul className="space-y-2.5 text-xs">
             <li>
-              <Link href="/admin/login" className="hover:text-white transition-colors">
-                Panel Administrativo
-              </Link>
+              <span className="text-zinc-400 block">Atención Personalizada:</span>
+              <span className="text-zinc-200 font-mono font-semibold">Mesa de Ayuda Oficial</span>
             </li>
-            <li>
-              <Link href="/admin/scanner" className="hover:text-white transition-colors">
-                Escáner de Acceso (Staff)
-              </Link>
+            <li className="pt-1">
+              <span className="text-zinc-400 block">Dudas sobre tu Folio o Pago:</span>
+              <span className="text-zinc-200 font-mono">WhatsApp: 55 1202 3739</span>
             </li>
           </ul>
 
-          <div className="mt-6">
+          <div className="mt-5">
             <a
               href="https://wa.me/525512023739"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800/80 border border-zinc-700/80 text-zinc-300 text-xs font-medium transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/40 border border-emerald-500/40 text-emerald-400 text-xs font-bold transition-colors"
             >
-              <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+              <MessageCircle className="w-4 h-4" />
               <span>Mesa de Ayuda WhatsApp</span>
             </a>
           </div>
