@@ -156,7 +156,7 @@ function ApartarContent() {
                   const isSelected = t.id === selectedTypeId;
                   const displayTotal = 200;
                   const realTaken = Number(t.sold || 0) + Number(t.reserved || 0);
-                  const displayAvailable = Math.max(0, 120 - realTaken);
+                  const displayAvailable = Math.max(0, 53 - realTaken);
                   const isSoldOut = displayAvailable <= 0;
 
                   return (

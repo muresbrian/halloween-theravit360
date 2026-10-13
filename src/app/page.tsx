@@ -335,7 +335,7 @@ export default async function HomePage() {
             {ticketTypes.map((type: any) => {
               const displayTotal = 200;
               const realTaken = Number(type.sold || 0) + Number(type.reserved || 0);
-              const displayAvailable = Math.max(0, 120 - realTaken);
+              const displayAvailable = Math.max(0, 53 - realTaken);
               const isSoldOut = displayAvailable <= 0;
               const percentSold = Math.min(100, Math.round(((displayTotal - displayAvailable) / displayTotal) * 100));
 
