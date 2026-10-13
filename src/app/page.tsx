@@ -334,8 +334,10 @@ export default async function HomePage() {
           <div className="max-w-xl mx-auto">
             {ticketTypes.map((type: any) => {
               const displayTotal = 200;
+              const testBaseline = 49;
               const realTaken = Number(type.sold || 0) + Number(type.reserved || 0);
-              const displayAvailable = Math.max(0, 53 - realTaken);
+              const newTaken = Math.max(0, realTaken - testBaseline);
+              const displayAvailable = Math.max(0, 53 - newTaken);
               const isSoldOut = displayAvailable <= 0;
               const percentSold = Math.min(100, Math.round(((displayTotal - displayAvailable) / displayTotal) * 100));
 

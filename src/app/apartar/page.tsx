@@ -155,8 +155,10 @@ function ApartarContent() {
                 {ticketTypes.map((t) => {
                   const isSelected = t.id === selectedTypeId;
                   const displayTotal = 200;
+                  const testBaseline = 49;
                   const realTaken = Number(t.sold || 0) + Number(t.reserved || 0);
-                  const displayAvailable = Math.max(0, 53 - realTaken);
+                  const newTaken = Math.max(0, realTaken - testBaseline);
+                  const displayAvailable = Math.max(0, 53 - newTaken);
                   const isSoldOut = displayAvailable <= 0;
 
                   return (
